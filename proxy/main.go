@@ -220,7 +220,7 @@ func forceSyncOutput(ctx context.Context, repo *dagger.Directory) (*dagger.Direc
 
 func webhookContainer(c *dagger.Client) *dagger.Container {
 	// TODO download the right binary for $PLATFORM/$ARCH
-	return c.Container().From("ubuntu:lunar").
+	return c.Container(dagger.ContainerOpts{Platform: "linux/amd64"}).From("ubuntu:lunar").
 		WithExec([]string{"sh", "-c", "apt update && apt install -y wget"}).
 		WithExec([]string{"wget", "-q", "https://github.com/adnanh/webhook/releases/download/2.8.1/webhook-linux-amd64.tar.gz"}).
 		WithExec([]string{"tar", "-C", "/usr/local/bin", "--strip-components", "1", "-xf", "webhook-linux-amd64.tar.gz", "webhook-linux-amd64/webhook"}).

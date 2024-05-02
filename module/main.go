@@ -22,7 +22,7 @@ func (m *Pocketci) Publish(ctx context.Context, src *Directory, address, usernam
 func (m *Pocketci) BaseContainer(ctx context.Context, src *Directory) *Container {
 	goModCache := dag.CacheVolume("gomod")
 	goBuildCache := dag.CacheVolume("gobuild")
-	pocketci := dag.Container().
+	pocketci := dag.Container(ContainerOpts{Platform: "linux/amd64"}).
 		From("golang:1.21-alpine").
 		WithDirectory("/app", src).
 		WithWorkdir("/app").
@@ -33,31 +33,37 @@ func (m *Pocketci) BaseContainer(ctx context.Context, src *Directory) *Container
 		File("pocketci")
 
 	return dag.
-		Container().
+		Container(ContainerOpts{Platform: "linux/amd64"}).
 		From("alpine:3.19").
 		WithExposedPort(8080).
 		WithFile("/pocketci", pocketci).
 		WithWorkdir("/").
 		WithExec([]string{"apk", "add", "--update", "--no-cache", "ca-certificates", "curl", "docker", "openrc"}).
-		WithExec([]string{"curl", "-LO", "https://github.com/dagger/dagger/releases/download/v0.9.7/dagger_v0.9.7_linux_amd64.tar.gz"}).
-		WithExec([]string{"tar", "xvf", "dagger_v0.9.7_linux_amd64.tar.gz"}).
+		WithExec([]string{"curl", "-LO", "https://github.com/dagger/dagger/releases/download/v0.11.2/dagger_v0.11.2_linux_amd64.tar.gz"}).
+		WithExec([]string{"tar", "xvf", "dagger_v0.11.2_linux_amd64.tar.gz"}).
 		WithExec([]string{"mv", "dagger", "/bin/dagger"}).
-		WithExec([]string{"rm", "dagger_v0.9.7_linux_amd64.tar.gz", "LICENSE"}).
+		WithExec([]string{"rm", "dagger_v0.11.2_linux_amd64.tar.gz", "LICENSE"}).
 		WithEntrypoint([]string{"/pocketci"})
 }
 
 // Starts the pocketci web handler
-func (m *Pocketci) Serve(ctx context.Context, src *Directory, hooks Optional[*File], async Optional[bool]) (*Service, error) {
+func (m *Pocketci) Serve(
+	ctx context.Context,
+	src *Directory,
+	// +optional
+	hooks *File,
+	// +optional
+	async bool,
+) (*Service, error) {
 	c := m.BaseContainer(ctx, src)
 
 	exec := []string{}
-	hooksFile, ok := hooks.Get()
-	if ok {
-		c = c.WithFile("/hooks.yaml", hooksFile)
+	if hooks != nil {
+		c = c.WithFile("/hooks.yaml", hooks)
 		exec = append(exec, "-hooks", "/hooks.yaml")
 	}
 
-	if _, ok = async.Get(); ok {
+	if async {
 		exec = append(exec, "-async", "true")
 	}
 
